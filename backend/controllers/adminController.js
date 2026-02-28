@@ -1,8 +1,57 @@
 import crypto from 'crypto';
-import GlobalSettings from '../models/GlobalSettings.js';
 import mongoose from 'mongoose';
+import GlobalSettings from '../models/GlobalSettings.js';
+import User from '../models/User.js';
+import Student from '../models/Student.js';
+import FeeRecord from '../models/FeeRecord.js';
+import Attendance from '../models/Attendance.js';
 
 const algorithm = 'aes-256-cbc';
+
+// @desc    Get Admin Dashboard Metrics
+// @route   GET /api/admin/metrics
+// @access  Private (SuperAdmin, Clerk)
+export const getDashboardMetrics = async (req, res) => {
+    try {
+        const totalStudentsCount = await Student.countDocuments({ isDeleted: false });
+
+        // Sum all completed payments
+        const fees = await FeeRecord.find({ paymentStatus: 'Completed', isDeleted: false });
+        const totalRevenue = fees.reduce((acc, fee) => acc + fee.amountPaid, 0);
+
+        // Submissions this month
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const newAdmissions = await Student.countDocuments({
+            createdAt: { $gte: startOfMonth },
+            isDeleted: false
+        });
+
+        // Calculate Average Attendance Rate
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todaysAbsentees = await Attendance.countDocuments({ date: { $gte: today }, status: 'Absent' });
+
+        // If there are 100 students and 5 are absent, rate is 95%.
+        const attendanceRate = totalStudentsCount > 0
+            ? Math.max(0, 100 - ((todaysAbsentees / totalStudentsCount) * 100)).toFixed(1)
+            : 0;
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                totalStudents: totalStudentsCount,
+                monthlyRevenue: totalRevenue,
+                attendanceRate: attendanceRate,
+                newAdmissions: newAdmissions,
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
 
 // Helper to encrypt
 const encrypt = (text) => {

@@ -23,6 +23,18 @@ export const createInquiry = async (req, res) => {
     }
 };
 
+// @desc    Get All Inquiries
+// @route   GET /api/admissions/inquiry
+// @access  Private (Clerk, SuperAdmin)
+export const getAllInquiries = async (req, res) => {
+    try {
+        const inquiries = await Inquiry.find().sort({ createdAt: -1 });
+        res.status(200).json({ status: 'success', data: inquiries });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 // @desc    Update Inquiry Status
 // @route   PUT /api/admissions/inquiry/:id
 // @access  Private (Clerk, SuperAdmin)

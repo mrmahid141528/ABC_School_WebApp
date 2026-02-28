@@ -1,9 +1,10 @@
 import express from 'express';
-import { collectOfflineFee, createOrder, paymentWebhook, logExpense, generatePayroll, exportReports } from '../controllers/financeController.js';
+import { collectOfflineFee, createOrder, paymentWebhook, logExpense, generatePayroll, exportReports, getStudentDues } from '../controllers/financeController.js';
 import { requireAuth, checkRole } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/dues/:studentId', requireAuth, checkRole(['SuperAdmin', 'Clerk']), getStudentDues);
 router.post('/collect-fee', requireAuth, checkRole(['SuperAdmin', 'Clerk']), collectOfflineFee);
 router.post('/create-order', requireAuth, checkRole(['Parent']), createOrder);
 // Webhooks must be public to receive payloads from external gateways

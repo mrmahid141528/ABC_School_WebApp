@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../services/apiClient';
 import { Users, CreditCard, GraduationCap, TrendingUp } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -43,15 +44,36 @@ const StatCard = ({ title, value, icon: Icon, trend }) => (
 );
 
 const AdminDashboard = () => {
+    const [metrics, setMetrics] = useState({
+        totalStudents: 0,
+        monthlyRevenue: 0,
+        attendanceRate: 0,
+        newAdmissions: 0,
+    });
+
+    useEffect(() => {
+        const fetchMetrics = async () => {
+            try {
+                const res = await api.get('/admin/metrics');
+                if (res.status === 'success') {
+                    setMetrics(res.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch dashboard metrics", err);
+            }
+        };
+        fetchMetrics();
+    }, []);
+
     return (
         <div className="space-y-6">
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Students" value="2,451" icon={Users} trend={+5.4} />
-                <StatCard title="Monthly Revenue" value="₹12.4L" icon={CreditCard} trend={+12.5} />
-                <StatCard title="Avg Attendance" value="94.2%" icon={GraduationCap} trend={-1.2} />
-                <StatCard title="New Admissions" value="142" icon={Users} trend={+24.0} />
+                <StatCard title="Total Students" value={metrics.totalStudents.toLocaleString()} icon={Users} trend={+5.4} />
+                <StatCard title="Monthly Revenue" value={`₹${(metrics.monthlyRevenue || 0).toLocaleString()}`} icon={CreditCard} trend={+12.5} />
+                <StatCard title="Avg Attendance" value={`${metrics.attendanceRate}%`} icon={GraduationCap} trend={-1.2} />
+                <StatCard title="New Admissions" value={metrics.newAdmissions.toLocaleString()} icon={Users} trend={+24.0} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

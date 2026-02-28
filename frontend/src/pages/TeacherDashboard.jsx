@@ -1,13 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, FileText, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 
 const TeacherDashboard = () => {
-    // Mock Data
-    const classes = [
-        { id: 1, name: 'Class 10 - A', subject: 'Class Teacher', students: 45, attendanceDone: true },
-        { id: 2, name: 'Class 9 - C', subject: 'Mathematics', students: 42, attendanceDone: false },
-        { id: 3, name: 'Class 11 - Sci', subject: 'Physics', students: 38, attendanceDone: false },
-    ];
+    const navigate = useNavigate();
+    const [classes, setClasses] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            try {
+                const res = await api.get('/academic/teacher/dashboard');
+                if (res.status === 'success') {
+                    setClasses(res.data);
+                }
+            } catch (error) {
+                toast.error('Failed to load schedule');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDashboard();
+    }, []);
 
     return (
         <div className="space-y-8">
@@ -25,34 +41,40 @@ const TeacherDashboard = () => {
             {/* Classes Grid */}
             <div>
                 <h3 className="text-xl font-bold text-slate-800 mb-6">Today's Schedule</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {classes.map((cls) => (
-                        <div key={cls.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h4 className="text-xl font-bold text-slate-800">{cls.name}</h4>
-                                    <p className="text-sm font-medium text-primary mt-1">{cls.subject}</p>
+                {isLoading ? (
+                    <div className="text-slate-500 flex justify-center py-12">Loading schedule...</div>
+                ) : classes.length === 0 ? (
+                    <div className="text-slate-500 bg-white p-6 rounded-2xl border border-slate-100 text-center">No classes assigned yet.</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {classes.map((cls) => (
+                            <div key={cls.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div>
+                                        <h4 className="text-xl font-bold text-slate-800">{cls.name}</h4>
+                                        <p className="text-sm font-medium text-primary mt-1">{cls.subject}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                        <Users className="w-6 h-6" />
+                                    </div>
                                 </div>
-                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                                    <Users className="w-6 h-6" />
-                                </div>
-                            </div>
 
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-500 font-medium">{cls.students} Students</span>
-                                {cls.attendanceDone ? (
-                                    <span className="flex items-center text-emerald-600 font-semibold bg-emerald-50 px-3 py-1 rounded-full">
-                                        <CheckCircle2 className="w-4 h-4 mr-1" /> Done
-                                    </span>
-                                ) : (
-                                    <button className="text-primary font-semibold hover:text-primary-hover active:scale-95 transition-all bg-primary/5 px-4 py-1.5 rounded-full">
-                                        Mark Register
-                                    </button>
-                                )}
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-500 font-medium">{cls.students} Students</span>
+                                    {cls.attendanceDone ? (
+                                        <span className="flex items-center text-emerald-600 font-semibold bg-emerald-50 px-3 py-1 rounded-full">
+                                            <CheckCircle2 className="w-4 h-4 mr-1" /> Done
+                                        </span>
+                                    ) : (
+                                        <button onClick={() => navigate(`/teacher/attendance?classId=${cls.id}`)} className="text-primary font-semibold hover:text-primary-hover active:scale-95 transition-all bg-primary/5 px-4 py-1.5 rounded-full">
+                                            Mark Register
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Quick Links */}

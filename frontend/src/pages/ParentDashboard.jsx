@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarOff, Receipt, Bell, Search, UserCircle, MapPin } from 'lucide-react';
 import { useAuth } from '../context/authStore';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 
 const ActionWidget = ({ icon: Icon, title, description, badge, onClick }) => (
     <button
@@ -22,14 +24,39 @@ const ActionWidget = ({ icon: Icon, title, description, badge, onClick }) => (
 
 const ParentDashboard = () => {
     const { user } = useAuth();
+    const [dashboardData, setDashboardData] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Mock Student Data based on linked parent
-    const activeStudent = {
-        name: "Aryan Sharma",
-        className: "Class 10 - A",
-        rollNo: "10A-04",
-        avatarUrl: null
-    };
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            try {
+                const res = await api.get('/parents/dashboard');
+                if (res.status === 'success') {
+                    setDashboardData(res.data.data);
+                }
+            } catch (error) {
+                toast.error('Failed to load dashboard data');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDashboard();
+    }, []);
+
+    if (isLoading) {
+        return <div className="p-8 text-center text-slate-500">Loading parent portal...</div>;
+    }
+
+    if (!dashboardData || !dashboardData.student) {
+        return (
+            <div className="p-8 text-center bg-rose-50 rounded-2xl border border-rose-100 mt-6">
+                <h3 className="text-xl font-bold text-rose-800 mb-2">Account Not Linked</h3>
+                <p className="text-rose-600">Your account {user?.mobileNumber} is not linked to any active student. Please contact administration.</p>
+            </div>
+        );
+    }
+
+    const { student, pendingFee } = dashboardData;
 
     return (
         <div className="space-y-6 pb-6">
@@ -57,16 +84,15 @@ const ParentDashboard = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <span className="text-white/60 text-xs font-medium uppercase tracking-wider">Active Student</span>
-                        <h2 className="text-2xl font-bold mt-1">{activeStudent.name}</h2>
-                        <p className="text-white/80 text-sm mt-0.5">{activeStudent.className} • Roll {activeStudent.rollNo}</p>
+                        <h2 className="text-2xl font-bold mt-1">{student.name}</h2>
+                        <p className="text-white/80 text-sm mt-0.5">{student.className} • Roll {student.rollNo}</p>
                     </div>
 
-                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-sm">
-                        {activeStudent.avatarUrl ? (
-                            <img src={activeStudent.avatarUrl} alt="student" className="w-full h-full rounded-2xl object-cover" />
-                        ) : (
-                            <UserCircle className="w-8 h-8 text-white/50" />
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-sm relative">
+                        {!student.isPresentToday && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-slate-900 shadow-sm" title="Absent Today" />
                         )}
+                        <UserCircle className="w-8 h-8 text-white/50" />
                     </div>
                 </div>
 
@@ -89,16 +115,26 @@ const ParentDashboard = () => {
             <div>
                 <h3 className="text-lg font-bold text-slate-800 mb-4 px-1">Quick Actions</h3>
                 <div className="grid grid-cols-1 gap-3">
-                    <ActionWidget
-                        icon={Receipt}
-                        title="Sessional Fee Due"
-                        description="₹14,500 due by 10th May"
-                        badge={true}
-                    />
+                    {pendingFee ? (
+                        <ActionWidget
+                            icon={Receipt}
+                            title="Sessional Fee Due"
+                            description={`₹${pendingFee.amount.toLocaleString()} due for ${pendingFee.dueFor}`}
+                            badge={true}
+                        />
+                    ) : (
+                        <ActionWidget
+                            icon={Receipt}
+                            title="No Fees Due"
+                            description="All dues are cleared for the current term."
+                            badge={false}
+                        />
+                    )}
+
                     <ActionWidget
                         icon={CalendarOff}
-                        title="Apply for Leave"
-                        description="Request up to 3 days of medical/casual leave"
+                        title={student.isPresentToday ? "Apply for Leave" : "Student is Absent Today"}
+                        description={student.isPresentToday ? "Request up to 3 days of medical/casual leave" : "A corresponding SMS has been sent to your registered mobile."}
                     />
                 </div>
             </div>

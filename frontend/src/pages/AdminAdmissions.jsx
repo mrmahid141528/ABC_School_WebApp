@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, Plus, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import InputField from '../components/ui/InputField';
@@ -9,17 +11,68 @@ const AdminAdmissions = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
 
-    // Mock Data
-    const leads = [
-        { id: 'LD-1001', name: 'Ravi Kumar', phone: '9876543210', class: 'Class 1', status: 'Pending Approval', date: '21 May 2026' },
-        { id: 'LD-1002', name: 'Sneha Verma', phone: '8765432109', class: 'Class 6', status: 'Approved', date: '20 May 2026' },
-        { id: 'LD-1003', name: 'Amit Shah', phone: '7654321098', class: 'Class 9', status: 'Document Missing', date: '19 May 2026' },
-        { id: 'LD-1004', name: 'Karan Singh', phone: '6543210987', class: 'Class 11', status: 'Rejected', date: '18 May 2026' },
-    ];
+    // Live Data States
+    const [leads, setLeads] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Form States
+    const [parentName, setParentName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [appliedClass, setAppliedClass] = useState('Class 1');
+
+    const fetchLeads = async () => {
+        try {
+            const res = await api.get('/admissions/inquiry');
+            if (res.status === 'success') {
+                setLeads(res.data);
+            }
+        } catch (error) {
+            toast.error('Failed to fetch inquiries');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLeads();
+    }, []);
+
+    const handleSaveInquiry = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await api.post('/admissions/inquiry', {
+                parentName,
+                mobileNumber: phone,
+                requestedClass: appliedClass
+            });
+            if (res.status === 'success') {
+                toast.success('Inquiry saved successfully');
+                setIsNewLeadModalOpen(false);
+                setParentName('');
+                setPhone('');
+                setAppliedClass('Class 1');
+                fetchLeads(); // Refresh list
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to save inquiry');
+        }
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            const res = await api.put(`/admissions/inquiry/${id}`, { status: newStatus });
+            if (res.status === 'success') {
+                toast.success(`Inquiry marked as ${newStatus}`);
+                fetchLeads();
+            }
+        } catch (error) {
+            toast.error('Failed to update status');
+        }
+    };
 
     const filteredLeads = leads.filter(lead =>
-        lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.id.toLowerCase().includes(searchTerm.toLowerCase())
+        lead.parentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.mobileNumber.includes(searchTerm)
     );
 
     return (
@@ -70,29 +123,35 @@ const AdminAdmissions = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredLeads.map((lead) => (
-                                <tr key={lead.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                    <td className="py-4 px-6 text-slate-500 text-sm font-medium whitespace-nowrap">{lead.id}</td>
-                                    <td className="py-4 px-6 font-semibold text-slate-800 whitespace-nowrap">{lead.name}</td>
-                                    <td className="py-4 px-6 text-slate-600 text-sm whitespace-nowrap">{lead.phone}</td>
-                                    <td className="py-4 px-6 text-slate-600 text-sm whitespace-nowrap">{lead.class}</td>
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="6" className="py-8 text-center text-slate-500">Loading inquiries...</td>
+                                </tr>
+                            ) : filteredLeads.map((lead) => (
+                                <tr key={lead._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-4 px-6 text-slate-500 text-sm font-medium whitespace-nowrap">
+                                        LD-{lead._id.substring(lead._id.length - 4)}
+                                    </td>
+                                    <td className="py-4 px-6 font-semibold text-slate-800 whitespace-nowrap">{lead.parentName}</td>
+                                    <td className="py-4 px-6 text-slate-600 text-sm whitespace-nowrap">{lead.mobileNumber}</td>
+                                    <td className="py-4 px-6 text-slate-600 text-sm whitespace-nowrap">{lead.requestedClass}</td>
                                     <td className="py-4 px-6 whitespace-nowrap">
                                         <Badge variant={
-                                            lead.status === 'Approved' ? 'success' :
+                                            lead.status === 'Approved' || lead.status === 'Form Submitted' ? 'success' :
                                                 lead.status === 'Rejected' ? 'danger' :
-                                                    lead.status === 'Document Missing' ? 'warning' : 'primary'
+                                                    lead.status === 'Interview Scheduled' ? 'warning' : 'primary'
                                         }>
                                             {lead.status}
                                         </Badge>
                                     </td>
                                     <td className="py-4 px-6 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
-                                            {lead.status === 'Pending Approval' && (
+                                            {lead.status === 'New' && (
                                                 <>
-                                                    <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Approve">
+                                                    <button onClick={() => handleUpdateStatus(lead._id, 'Form Submitted')} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Mark Form Submitted">
                                                         <CheckCircle2 className="w-5 h-5" />
                                                     </button>
-                                                    <button className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Reject">
+                                                    <button onClick={() => handleUpdateStatus(lead._id, 'Rejected')} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Reject">
                                                         <XCircle className="w-5 h-5" />
                                                     </button>
                                                 </>
@@ -127,13 +186,29 @@ const AdminAdmissions = () => {
 
             {/* New Lead Modal */}
             <Modal isOpen={isNewLeadModalOpen} onClose={() => setIsNewLeadModalOpen(false)} title="New Admission Inquiry">
-                <form className="space-y-4">
-                    <InputField label="Student Name" placeholder="e.g. Rahul Kumar" />
-                    <InputField label="Parent Mobile Number" placeholder="e.g. 9876543210" type="tel" />
+                <form className="space-y-4" onSubmit={handleSaveInquiry}>
+                    <InputField
+                        label="Parent Name"
+                        placeholder="e.g. Rahul Kumar"
+                        value={parentName}
+                        onChange={(e) => setParentName(e.target.value)}
+                        required
+                    />
+                    <InputField
+                        label="Parent Mobile Number"
+                        placeholder="e.g. 9876543210"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                    />
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">Class Applying For</label>
-                        <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary">
+                        <select
+                            value={appliedClass}
+                            onChange={(e) => setAppliedClass(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary">
                             <option>Class 1</option>
                             <option>Class 2</option>
                             <option>Class 6</option>
@@ -142,7 +217,7 @@ const AdminAdmissions = () => {
                         </select>
                     </div>
 
-                    <Button className="w-full mt-4" onClick={(e) => { e.preventDefault(); setIsNewLeadModalOpen(false); }}>
+                    <Button className="w-full mt-4" type="submit">
                         Save Inquiry
                     </Button>
                 </form>

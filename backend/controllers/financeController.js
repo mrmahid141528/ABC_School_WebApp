@@ -4,6 +4,46 @@ import FeeRecord from '../models/FeeRecord.js';
 import GlobalSettings from '../models/GlobalSettings.js';
 import Student from '../models/Student.js';
 
+// @desc    Get Student Pending Dues
+// @route   GET /api/finance/dues/:studentId
+// @access  Private (Clerk, SuperAdmin)
+export const getStudentDues = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+
+        // Find student and populate class details
+        const student = await Student.findOne({ studentId, isDeleted: false }).populate('currentClass', 'className section');
+        if (!student) {
+            return res.status(404).json({ status: 'error', message: 'Student not found' });
+        }
+
+        // Find pending fee record (assuming one active term at a time for simplicity)
+        const pendingFee = await FeeRecord.findOne({
+            studentId,
+            status: 'Pending',
+            isDeleted: false
+        }).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                student: {
+                    name: `${student.firstName} ${student.lastName}`,
+                    id: student.studentId,
+                    class: student.currentClass ? `${student.currentClass.className} - ${student.currentClass.section}` : 'N/A'
+                },
+                feeRecord: pendingFee ? {
+                    id: pendingFee._id,
+                    pendingAmount: pendingFee.totalAmount, // strict full payment only
+                    dueFor: pendingFee.feeTerm
+                } : null
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 // @desc    Collect Offline Fee (Cash/Cheque)
 // @route   POST /api/finance/collect-fee
 // @access  Private (Clerk, SuperAdmin)

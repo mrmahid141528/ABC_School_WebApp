@@ -1,19 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Send, Check } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 
 const TeacherAttendance = () => {
-    const [students, setStudents] = useState([
-        { id: '10A-01', name: 'Aarav Patel', isPresent: true },
-        { id: '10A-02', name: 'Diya Singh', isPresent: true },
-        { id: '10A-03', name: 'Kabir Khan', isPresent: false },
-        { id: '10A-04', name: 'Aryan Sharma', isPresent: true },
-        { id: '10A-05', name: 'Ananya Gupta', isPresent: true },
-        { id: '10A-06', name: 'Rohan Verma', isPresent: false },
-    ]);
+    const [searchParams] = useSearchParams();
+    const classId = searchParams.get('classId');
+    const navigate = useNavigate();
 
+    const [className, setClassName] = useState('Loading...');
+    const [students, setStudents] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!classId) {
+            toast.error("No class selected");
+            navigate('/teacher');
+            return;
+        }
+
+        const fetchRoster = async () => {
+            try {
+                const res = await api.get(`/academic/teacher/roster/${classId}`);
+                if (res.status === 'success') {
+                    setClassName(res.data.data.className);
+                    setStudents(res.data.data.students);
+                }
+            } catch (error) {
+                toast.error('Failed to load roster');
+                navigate('/teacher');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchRoster();
+    }, [classId, navigate]);
 
     const toggleAttendance = (id) => {
         setStudents(students.map(s => s.id === id ? { ...s, isPresent: !s.isPresent } : s));
@@ -25,13 +50,35 @@ const TeacherAttendance = () => {
 
     const absentees = students.filter(s => !s.isPresent);
 
+    const handleConfirmSubmit = async () => {
+        try {
+            const absenteeIds = absentees.map(a => a._id);
+            const date = new Date().toISOString();
+
+            // 1. Submit Attendance
+            await api.post('/academic/attendance', { classId, date, absenteeIds });
+
+            // 2. Send SMS (if any absent)
+            if (absenteeIds.length > 0) {
+                await api.post('/academic/attendance/send-sms', { selectedAbsenteeIds: absenteeIds });
+            }
+
+            toast.success("Attendance Submitted! SMS alerts dispatched.");
+            setIsSmsModalOpen(false);
+            navigate('/teacher');
+
+        } catch (error) {
+            toast.error(error.message || "Failed to submit attendance");
+        }
+    };
+
     return (
         <div className="space-y-6">
 
             {/* Header */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Class 10 - A</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">{className}</h2>
                     <p className="text-slate-500 font-medium">Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                 </div>
 
@@ -57,7 +104,11 @@ const TeacherAttendance = () => {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {students.map(student => (
+                    {isLoading ? (
+                        <div className="col-span-full py-12 text-center text-slate-500">Loading roster...</div>
+                    ) : students.length === 0 ? (
+                        <div className="col-span-full py-12 text-center text-slate-500">No students found in this class.</div>
+                    ) : students.map(student => (
                         <div
                             key={student.id}
                             onClick={() => toggleAttendance(student.id)}
@@ -109,7 +160,7 @@ const TeacherAttendance = () => {
 
                     <div className="pt-4 border-t border-slate-100 flex gap-3">
                         <Button variant="outline" className="flex-1" onClick={() => setIsSmsModalOpen(false)}>Cancel</Button>
-                        <Button className="flex-1" onClick={() => { setIsSmsModalOpen(false); alert('Attendance Submitted! Absentees SMS dispatched.'); }}>Confirm Send</Button>
+                        <Button className="flex-1" onClick={handleConfirmSubmit}>Confirm Send</Button>
                     </div>
                 </div>
             </Modal>

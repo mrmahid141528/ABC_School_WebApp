@@ -1,20 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Receipt, CheckCircle2, Clock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 
 const ParentFees = () => {
-    // Mock Data
-    const feeRecords = [
-        { id: 'INV-001', title: 'Term 1 Tuition Fee', amount: 15000, dueDate: '2026-05-10', status: 'Pending' },
-        { id: 'INV-002', title: 'Transport Fee (Q1)', amount: 4500, dueDate: '2026-05-10', status: 'Pending' },
-        { id: 'INV-003', title: 'Admission Fee', amount: 25000, dueDate: '2026-04-01', status: 'Paid', paymentDate: '2026-03-25' },
-        { id: 'INV-004', title: 'Annual Charges', amount: 8000, dueDate: '2026-04-01', status: 'Paid', paymentDate: '2026-03-25' },
-    ];
+    const [feeRecords, setFeeRecords] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchFees = async () => {
+            try {
+                const res = await api.get('/parents/fees');
+                if (res.status === 'success') {
+                    setFeeRecords(res.data.data);
+                }
+            } catch (error) {
+                toast.error('Failed to load fee records');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchFees();
+    }, []);
 
     const pendingAmount = feeRecords
         .filter(f => f.status === 'Pending')
-        .reduce((sum, f) => sum + f.amount, 0);
+        .reduce((sum, f) => sum + f.totalAmount, 0);
 
     const handlePayMock = () => {
         alert("Razorpay implementation will open bottom sheet overlay here!");
@@ -47,8 +60,12 @@ const ParentFees = () => {
             <div className="space-y-4">
                 <h3 className="text-lg font-bold text-slate-800 px-1 pt-2">Invoice History</h3>
 
-                {feeRecords.map((fee) => (
-                    <div key={fee.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col">
+                {isLoading ? (
+                    <div className="text-center py-8 text-slate-500">Loading records...</div>
+                ) : feeRecords.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 bg-white rounded-3xl border border-slate-100">No fee records found.</div>
+                ) : feeRecords.map((fee) => (
+                    <div key={fee._id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col">
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center">
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shrink-0
@@ -56,8 +73,8 @@ const ParentFees = () => {
                                     {fee.status === 'Paid' ? <CheckCircle2 className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-slate-800 text-sm md:text-base">{fee.title}</h4>
-                                    <p className="text-xs text-slate-400 mt-0.5">{fee.id}</p>
+                                    <h4 className="font-bold text-slate-800 text-sm md:text-base">{fee.feeTerm}</h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">{fee._id.substring(fee._id.length - 6).toUpperCase()}</p>
                                 </div>
                             </div>
                             <Badge variant={fee.status === 'Paid' ? 'success' : 'warning'}>
@@ -68,12 +85,14 @@ const ParentFees = () => {
                         <div className="flex justify-between items-end border-t border-slate-50 pt-3">
                             <div>
                                 <p className="text-xs text-slate-400 font-medium">Amount</p>
-                                <p className="text-lg font-bold text-slate-800">₹{fee.amount.toLocaleString()}</p>
+                                <p className="text-lg font-bold text-slate-800">₹{fee.totalAmount.toLocaleString()}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs text-slate-400 font-medium">{fee.status === 'Paid' ? 'Paid On' : 'Due Date'}</p>
                                 <p className={`text-sm font-semibold ${fee.status === 'Pending' ? 'text-amber-600' : 'text-slate-600'}`}>
-                                    {fee.status === 'Paid' ? fee.paymentDate : fee.dueDate}
+                                    {fee.status === 'Paid' && fee.paymentDate
+                                        ? new Date(fee.paymentDate).toLocaleDateString('en-IN')
+                                        : new Date(fee.dueDate).toLocaleDateString('en-IN')}
                                 </p>
                             </div>
                         </div>
