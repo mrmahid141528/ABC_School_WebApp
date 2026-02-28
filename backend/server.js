@@ -12,20 +12,26 @@ import User from './models/User.js';
 // Load env vars
 dotenv.config();
 
-// Connect to database
 // Connect to database and seed SuperAdmin
 connectDB().then(async () => {
-    // Always ensure the SuperAdmin account exists
-    const superAdminExists = await User.findOne({ username: 'mrmahid141528@gmail.com' });
-    if (!superAdminExists) {
-        await User.create({
-            name: 'Super Admin',
-            username: 'mrmahid141528@gmail.com',
-            password: '9733222558', // Will be hashed by pre-save hook
-            role: 'SuperAdmin',
-        });
-        console.log('✅ SuperAdmin account seeded: username=mrmahid141528@gmail.com');
-    }
+    // Upsert SuperAdmin — ensures account always has the correct credentials
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash('9733222558', 10);
+
+    await User.findOneAndUpdate(
+        { username: 'mrmahid141528@gmail.com' },
+        {
+            $set: {
+                name: 'Super Admin',
+                username: 'mrmahid141528@gmail.com',
+                password: hashedPassword,
+                role: 'SuperAdmin',
+                isDeleted: false,
+            }
+        },
+        { upsert: true, new: true }
+    );
+    console.log('✅ SuperAdmin account ready: username=mrmahid141528@gmail.com');
 });
 
 const app = express();
@@ -33,7 +39,11 @@ const app = express();
 // Security Middlewares
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: function (origin, callback) {
+        // Allow all origins (local dev + Netlify + custom domain)
+        // Security is enforced via JWT token on all protected routes
+        callback(null, true);
+    },
     credentials: true
 }));
 
