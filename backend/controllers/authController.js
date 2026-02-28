@@ -65,8 +65,8 @@ export const staffLogin = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(`Staff Login Error: ${error.message}`);
-        res.status(500).json({ status: 'error', message: 'Server Error' });
+        console.error(`Staff Login Error: ${error.message}`, error.stack);
+        res.status(500).json({ status: 'error', message: error.message || 'Server Error' });
     }
 };
 

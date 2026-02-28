@@ -28,7 +28,7 @@ connectDB().then(async () => {
                     isDeleted: false,
                 }
             },
-            { upsert: true, new: true }
+            { upsert: true, new: true, runValidators: false }
         );
         console.log('✅ SuperAdmin account ready: mrmahid141528@gmail.com');
     } catch (err) {
