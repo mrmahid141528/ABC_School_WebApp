@@ -19,11 +19,10 @@ import AdminAdmissions from './pages/AdminAdmissions';
 import AdminFinance from './pages/AdminFinance';
 import AdminAcademics from './pages/AdminAcademics';
 import AdminSettings from './pages/AdminSettings';
+import AdminBugs from './pages/AdminBugs';
 import LegalPages from './pages/LegalPages';
 
 // Lazy loading pages for PWA performance
-// Mock Pages for structural validation
-const MockPage = ({ title }) => <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100"><h2>{title} Page Placeholder</h2></div>;
 
 function App() {
   return (
@@ -58,7 +57,7 @@ function App() {
                 <Route path="/admin/admissions" element={<AdminAdmissions />} />
                 <Route path="/admin/academics" element={<AdminAcademics />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
-                <Route path="/admin/bugs" element={<MockPage title="Bug Reports" />} />
+                <Route path="/admin/bugs" element={<AdminBugs />} />
 
                 {/* Teacher */}
                 <Route path="/teacher/classes" element={<TeacherDashboard />} />

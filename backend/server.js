@@ -61,6 +61,7 @@ import academicRoutes from './routes/academicRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import parentRoutes from './routes/parentRoutes.js';
+import bugRoutes from './routes/bugRoutes.js';
 
 import { initCronJobs } from './utils/cronBackup.js';
 
@@ -75,6 +76,7 @@ app.use('/api/academic', academicRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/parents', parentRoutes);
+app.use('/api/bugs', bugRoutes);
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'success', message: 'API is running' });

@@ -81,7 +81,11 @@ const TeacherDashboard = () => {
             <div>
                 <h3 className="text-xl font-bold text-slate-800 mb-6">Quick Tools</h3>
                 <div className="flex gap-4">
-                    <button className="flex items-center px-6 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-primary/50 hover:bg-primary/5 transition-all text-slate-700 font-medium active:scale-95">
+                    <button
+                        onClick={() => classes.length > 0 ? navigate(`/teacher/marks?classId=${classes[0].id}`) : null}
+                        disabled={classes.length === 0}
+                        className="flex items-center px-6 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-primary/50 hover:bg-primary/5 transition-all text-slate-700 font-medium active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                         <FileText className="w-5 h-5 mr-3 text-primary" />
                         Enter Exam Marks
                     </button>
