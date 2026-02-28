@@ -5,7 +5,6 @@ import Classes from '../models/Classes.js';
 import Subject from '../models/Subject.js';
 import Student from '../models/Student.js';
 import Leave from '../models/Leave.js';
-import Exam from '../models/Exam.js';
 
 // @desc    Submit Attendance (Upsert)
 // @route   POST /api/academic/attendance
