@@ -153,3 +153,57 @@ export const restoreData = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
+// @desc    Create Staff Account (SuperAdmin only)
+// @route   POST /api/admin/staff
+// @access  Private (SuperAdmin)
+export const createStaffAccount = async (req, res) => {
+    try {
+        const { name, role, username, password, mobileNumber, assignedClass } = req.body;
+        if (!name || !role || !username || !password) {
+            return res.status(400).json({ status: 'error', message: 'name, role, username, and password are required' });
+        }
+        const existing = await User.findOne({ username: username.toLowerCase().trim() });
+        if (existing) {
+            return res.status(400).json({ status: 'error', message: 'Username already taken' });
+        }
+        const staff = await User.create({
+            name,
+            role,
+            username: username.toLowerCase().trim(),
+            password,
+            mobileNumber: mobileNumber || undefined,
+            assignedClass: assignedClass || undefined,
+        });
+        res.status(201).json({ status: 'success', data: { _id: staff._id, name: staff.name, role: staff.role, username: staff.username } });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// @desc    Get All Staff
+// @route   GET /api/admin/staff
+// @access  Private (SuperAdmin)
+export const getAllStaff = async (req, res) => {
+    try {
+        const staff = await User.find({ role: { $in: ['SuperAdmin', 'Teacher', 'Clerk'] }, isDeleted: false })
+            .select('-password -otp -otpExpiry')
+            .populate('assignedClass', 'className section');
+        res.status(200).json({ status: 'success', data: staff });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// @desc    Delete (Disable) Staff Account
+// @route   DELETE /api/admin/staff/:id
+// @access  Private (SuperAdmin)
+export const deleteStaffAccount = async (req, res) => {
+    try {
+        const staff = await User.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
+        if (!staff) return res.status(404).json({ status: 'error', message: 'Staff member not found' });
+        res.status(200).json({ status: 'success', message: 'Staff account disabled successfully' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};

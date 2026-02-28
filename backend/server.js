@@ -13,16 +13,18 @@ import User from './models/User.js';
 dotenv.config();
 
 // Connect to database
+// Connect to database and seed SuperAdmin
 connectDB().then(async () => {
-    if (!process.env.MONGO_URI || process.env.MONGO_URI.startsWith('in-memory')) {
-        const count = await User.countDocuments();
-        if (count === 0) {
-            await User.create({ name: 'Super Admin Demo', mobileNumber: '9999999999', role: 'SuperAdmin' });
-            await User.create({ name: 'Parent Demo', mobileNumber: '8888888888', role: 'Parent' });
-            await User.create({ name: 'Teacher Demo', mobileNumber: '7777777777', role: 'Teacher', assignedClass: '5f8d0a7b2b8e9a1111111111' });
-            console.log('Zero-Config In-Memory Database Seeded with Demo Users!');
-            console.log('Use 9999999999 (Admin), 8888888888 (Parent), 7777777777 (Teacher)');
-        }
+    // Always ensure the SuperAdmin account exists
+    const superAdminExists = await User.findOne({ username: 'mrmahid141528@gmail.com' });
+    if (!superAdminExists) {
+        await User.create({
+            name: 'Super Admin',
+            username: 'mrmahid141528@gmail.com',
+            password: '9733222558', // Will be hashed by pre-save hook
+            role: 'SuperAdmin',
+        });
+        console.log('✅ SuperAdmin account seeded: username=mrmahid141528@gmail.com');
     }
 });
 

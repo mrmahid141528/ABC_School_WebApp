@@ -7,27 +7,87 @@ const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
 };
 
-// @desc    Send OTP for Login
+// Generate JWT helper
+const signToken = (user) => {
+    const payload = {
+        userId: user._id,
+        role: user.role,
+        name: user.name,
+        mobileNumber: user.mobileNumber,
+        ...(user.assignedClass && { assignedClass: user.assignedClass })
+    };
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+// @desc    Staff Login (Username + Password)
+// @route   POST /api/auth/staff-login
+// @access  Public
+export const staffLogin = async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ status: 'error', message: 'Username and password are required' });
+        }
+
+        const user = await User.findOne({
+            username: username.toLowerCase().trim(),
+            role: { $in: ['SuperAdmin', 'Teacher', 'Clerk'] },
+            isDeleted: false
+        });
+
+        if (!user) {
+            return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
+        }
+
+        if (!user.password) {
+            return res.status(401).json({ status: 'error', message: 'Password not set for this account. Contact Super Admin.' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
+        }
+
+        const token = signToken(user);
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Authentication successful',
+            token,
+            user: {
+                userId: user._id,
+                role: user.role,
+                name: user.name,
+                username: user.username,
+                ...(user.assignedClass && { assignedClass: user.assignedClass })
+            }
+        });
+
+    } catch (error) {
+        console.error(`Staff Login Error: ${error.message}`);
+        res.status(500).json({ status: 'error', message: 'Server Error' });
+    }
+};
+
+// @desc    Send OTP — PARENTS ONLY (mobile must be in DB)
 // @route   POST /api/auth/send-otp
 // @access  Public
 export const sendOTP = async (req, res) => {
     try {
-        const { mobileNumber, portalType } = req.body;
+        const { mobileNumber } = req.body;
 
-        if (!mobileNumber || !portalType) {
-            return res.status(400).json({ status: 'error', message: 'Mobile number and portalType are required' });
+        if (!mobileNumber) {
+            return res.status(400).json({ status: 'error', message: 'Mobile number is required' });
         }
 
-        // Determine target roles
-        const targetRoles = portalType === 'staff' ? ['SuperAdmin', 'Teacher', 'Clerk'] : ['Parent'];
-
-        // Find User
-        const user = await User.findOne({ mobileNumber, role: { $in: targetRoles }, isDeleted: false });
+        // STRICTLY only look for Parent role
+        const user = await User.findOne({ mobileNumber, role: 'Parent', isDeleted: false });
 
         if (!user) {
             return res.status(403).json({
                 status: 'error',
-                message: portalType === 'staff' ? 'Unauthorized Staff' : 'Parent account not found. Please contact administration.'
+                message: 'This mobile number is not registered. Please contact the school administration.'
             });
         }
 
@@ -39,18 +99,16 @@ export const sendOTP = async (req, res) => {
         // Set expiry 5 minutes
         const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-        // Save to user
         user.otp = hashedOTP;
         user.otpExpiry = otpExpiry;
         await user.save();
 
-        // MOCK SMS API CALL
-        console.log(`[SMS MOCK] Sending OTP ${plainOTP} to ${mobileNumber}`);
+        // MOCK SMS - replace with real SMS API call
+        console.log(`[SMS] Sending OTP ${plainOTP} to ${mobileNumber}`);
 
-        // In development mode, we can return the OTP directly for testing purposes.
         res.status(200).json({
             status: 'success',
-            message: 'OTP sent successfully',
+            message: 'OTP sent to your registered mobile number',
             ...(process.env.NODE_ENV === 'development' && { _devOTP: plainOTP })
         });
 
@@ -60,19 +118,18 @@ export const sendOTP = async (req, res) => {
     }
 };
 
-// @desc    Verify OTP and return JWT
+// @desc    Verify OTP and return JWT — Parents Only
 // @route   POST /api/auth/verify-otp
 // @access  Public
 export const verifyOTP = async (req, res) => {
     try {
-        const { mobileNumber, otp, portalType } = req.body;
+        const { mobileNumber, otp } = req.body;
 
-        if (!mobileNumber || !otp || !portalType) {
-            return res.status(400).json({ status: 'error', message: 'Mobile number, OTP, and portalType are required' });
+        if (!mobileNumber || !otp) {
+            return res.status(400).json({ status: 'error', message: 'Mobile number and OTP are required' });
         }
 
-        const targetRoles = portalType === 'staff' ? ['SuperAdmin', 'Teacher', 'Clerk'] : ['Parent'];
-        const user = await User.findOne({ mobileNumber, role: { $in: targetRoles }, isDeleted: false });
+        const user = await User.findOne({ mobileNumber, role: 'Parent', isDeleted: false });
 
         if (!user || !user.otp || !user.otpExpiry) {
             return res.status(400).json({ status: 'error', message: 'Invalid request or OTP expired' });
@@ -83,14 +140,14 @@ export const verifyOTP = async (req, res) => {
             user.otp = undefined;
             user.otpExpiry = undefined;
             await user.save();
-            return res.status(400).json({ status: 'error', message: 'OTP has expired' });
+            return res.status(400).json({ status: 'error', message: 'OTP has expired. Please request a new one.' });
         }
 
         // Verify OTP
         const isMatch = await bcrypt.compare(otp.toString(), user.otp);
 
         if (!isMatch) {
-            return res.status(400).json({ status: 'error', message: 'Invalid OTP' });
+            return res.status(400).json({ status: 'error', message: 'Invalid OTP. Please try again.' });
         }
 
         // Valid OTP, clear it
@@ -98,21 +155,18 @@ export const verifyOTP = async (req, res) => {
         user.otpExpiry = undefined;
         await user.save();
 
-        // Generate JWT
-        const payload = {
-            userId: user._id,
-            role: user.role,
-            name: user.name,
-            ...(user.role === 'Teacher' && { assignedClass: user.assignedClass })
-        };
-
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+        const token = signToken(user);
 
         res.status(200).json({
             status: 'success',
             message: 'Authentication successful',
             token,
-            user: payload
+            user: {
+                userId: user._id,
+                role: user.role,
+                name: user.name,
+                mobileNumber: user.mobileNumber
+            }
         });
 
     } catch (error) {

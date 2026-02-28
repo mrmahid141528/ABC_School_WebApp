@@ -7,7 +7,9 @@ import Skeleton from './components/ui/Skeleton';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminStaff from './pages/AdminStaff';
 import ParentDashboard from './pages/ParentDashboard';
 import ParentAttendance from './pages/ParentAttendance';
 import ParentFees from './pages/ParentFees';
@@ -36,7 +38,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/legal/:policyType" element={<LegalPages />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<LandingPage />} />
 
             {/* PARENT Routes (Mobile Layout Wrapper) */}
             <Route element={<ProtectedRoute allowedRoles={['Parent']} />}>
@@ -58,6 +60,7 @@ function App() {
                 <Route path="/admin/academics" element={<AdminAcademics />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/bugs" element={<AdminBugs />} />
+                <Route path="/admin/staff" element={<AdminStaff />} />
 
                 {/* Teacher */}
                 <Route path="/teacher/classes" element={<TeacherDashboard />} />

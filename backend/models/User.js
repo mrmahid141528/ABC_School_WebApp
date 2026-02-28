@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema(
     {
-        mobileNumber: { type: String, required: true, unique: true, index: true },
+        mobileNumber: { type: String, unique: true, sparse: true, index: true },
+        username: { type: String, unique: true, sparse: true, index: true },
+        password: { type: String },
         role: {
             type: String,
             required: true,
@@ -12,7 +15,11 @@ const userSchema = new mongoose.Schema(
         assignedClass: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Classes',
-            required: function () { return this.role === 'Teacher'; }
+            required: false
+        },
+        linkedStudent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Student',
         },
         otp: { type: String },
         otpExpiry: { type: Date },
@@ -20,6 +27,14 @@ const userSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Hash password before saving
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password') || !this.password) return next();
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
 
 const User = mongoose.model('User', userSchema);
 export default User;
