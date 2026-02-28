@@ -52,7 +52,7 @@ const TeacherAttendance = () => {
 
     const handleConfirmSubmit = async () => {
         try {
-            const absenteeIds = absentees.map(a => a._id);
+            const absenteeIds = absentees.map(a => a.id); // Send studentId
             const date = new Date().toISOString();
 
             // 1. Submit Attendance

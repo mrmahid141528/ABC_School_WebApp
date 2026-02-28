@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import Classes from '../models/Classes.js';
 import Subject from '../models/Subject.js';
 import Student from '../models/Student.js';
+import Leave from '../models/Leave.js';
+import Exam from '../models/Exam.js';
 
 // @desc    Submit Attendance (Upsert)
 // @route   POST /api/academic/attendance
@@ -35,7 +37,26 @@ export const submitAttendance = async (req, res) => {
 // @route   POST /api/academic/leave-request
 // @access  Private (Parent)
 export const leaveRequest = async (req, res) => {
-    res.status(201).json({ status: 'success', message: 'Leave request submitted (mock)' });
+    try {
+        const parentId = req.user._id;
+        const parent = await User.findById(parentId).populate('linkedStudent');
+
+        if (!parent || !parent.linkedStudent) {
+            return res.status(404).json({ status: 'error', message: 'No linked student found' });
+        }
+
+        const { date, reason, note } = req.body;
+        const newLeave = await Leave.create({
+            studentId: parent.linkedStudent.studentId,
+            classId: parent.linkedStudent.currentClass,
+            date,
+            reason: note ? `${reason} - ${note}` : reason
+        });
+
+        res.status(201).json({ status: 'success', data: newLeave });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
 };
 
 // @desc    Approve Leave
@@ -59,7 +80,49 @@ export const sendSMS = async (req, res) => {
 // @route   POST /api/academic/marks
 // @access  Private (Teacher)
 export const enterMarks = async (req, res) => {
-    res.status(201).json({ status: 'success', message: 'Marks entered. Default hidden.' });
+    try {
+        const { classId, examName, marks } = req.body;
+
+        if (req.user.role === 'Teacher' && req.user.assignedClass && req.user.assignedClass.toString() !== classId) {
+            return res.status(403).json({ status: 'error', message: 'Forbidden: You can only enter marks for your assigned class' });
+        }
+
+        // Format marks array from the frontend mapping
+        // frontend sends marks as: { '10A-01': { math: 85, science: 92 }, ... }
+        // We will convert it to the Exam schema format
+
+        const formattedMarks = [];
+        for (const [studentId, subjectEntry] of Object.entries(marks)) {
+            for (const [subject, score] of Object.entries(subjectEntry)) {
+                if (score !== '') {
+                    formattedMarks.push({
+                        studentId: Number(studentId) || parseInt(studentId.split('-')[1]), // Quick fallback if ID is string based
+                        subject,
+                        maxMarks: 100,
+                        obtainedMarks: Number(score)
+                    });
+                }
+            }
+        }
+
+        // Upsert Exam
+        let exam = await Exam.findOne({ classId, examName, isDeleted: false });
+        if (exam) {
+            // merge marks
+            exam.marks = formattedMarks;
+            await exam.save();
+        } else {
+            exam = await Exam.create({
+                classId,
+                examName,
+                marks: formattedMarks
+            });
+        }
+
+        res.status(201).json({ status: 'success', data: exam, message: 'Marks safely stored in the database!' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
 };
 
 // @desc    Publish Results

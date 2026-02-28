@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Student from '../models/Student.js';
 import FeeRecord from '../models/FeeRecord.js';
 import Attendance from '../models/Attendance.js';
+import Leave from '../models/Leave.js';
 
 // @desc    Get Parent Dashboard Data
 // @route   GET /api/parents/dashboard
@@ -74,6 +75,52 @@ export const getParentFees = async (req, res) => {
         }).sort({ createdAt: -1 });
 
         res.status(200).json({ status: 'success', data: fees });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// @desc    Get Parent Leave History
+// @route   GET /api/parents/leaves
+// @access  Private (Parent)
+export const getParentLeaves = async (req, res) => {
+    try {
+        const parentId = req.user._id;
+        const parent = await User.findById(parentId).populate('linkedStudent');
+
+        if (!parent || !parent.linkedStudent) {
+            return res.status(404).json({ status: 'error', message: 'No linked student found' });
+        }
+
+        const leaves = await Leave.find({
+            studentId: parent.linkedStudent.studentId,
+            isDeleted: false
+        }).sort({ createdAt: -1 });
+
+        // Calculate attendance stats (this term)
+        const totalSchoolDays = await Attendance.countDocuments({ classId: parent.linkedStudent.currentClass, isDeleted: false });
+        // Absentees array stores studentId
+        const absentDaysCount = await Attendance.countDocuments({
+            classId: parent.linkedStudent.currentClass,
+            absentees: parent.linkedStudent.studentId,
+            isDeleted: false
+        });
+
+        const presentDays = Math.max(0, totalSchoolDays - absentDaysCount);
+        const percentage = totalSchoolDays > 0 ? ((presentDays / totalSchoolDays) * 100).toFixed(1) : 100;
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                leaves,
+                stats: {
+                    totalDays: totalSchoolDays,
+                    presentDays,
+                    absentDays: absentDaysCount,
+                    percentage: parseFloat(percentage)
+                }
+            }
+        });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }

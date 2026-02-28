@@ -18,14 +18,7 @@ const Login = () => {
 
     const { register, handleSubmit, formState: { errors } } = useForm();
 
-    const handleDemoLogin = (role) => {
-        const route = role === 'Parent' ? '/parent/dashboard' :
-            role === 'Teacher' ? '/teacher/classes' : '/admin/dashboard';
 
-        login('mock-demo-token-12345', { id: `MOCK-${Date.now()}`, name: `Mock ${role}`, role, phone: '0000000000' });
-        toast.success(`Logged in as ${role} (Demo Mode)`);
-        navigate(route);
-    };
 
     const handleSendOTP = async (data) => {
         setIsLoading(true);
@@ -150,16 +143,7 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* DEMO BYPASS UI */}
-                <div className="mt-8 pt-6 border-t border-slate-100 isolate">
-                    <p className="text-xs text-center text-slate-400 mb-3 uppercase tracking-wider font-semibold">Demo Access (UI Review)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" className="text-xs py-2 border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => handleDemoLogin('Parent')}>Parent</Button>
-                        <Button type="button" variant="outline" className="text-xs py-2 border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => handleDemoLogin('Teacher')}>Teacher</Button>
-                        <Button type="button" variant="outline" className="text-xs py-2 border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => handleDemoLogin('SuperAdmin')}>Super Admin</Button>
-                        <Button type="button" variant="outline" className="text-xs py-2 border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => handleDemoLogin('Clerk')}>Clerk</Button>
-                    </div>
-                </div>
+
 
             </div>
         </div>

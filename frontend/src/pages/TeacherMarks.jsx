@@ -1,24 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import api from '../services/apiClient';
 import Button from '../components/ui/Button';
 import InputField from '../components/ui/InputField';
-import { Save } from 'lucide-react';
+import { Save, ArrowLeft } from 'lucide-react';
 
 const TeacherMarks = () => {
-    const [marks, setMarks] = useState({
-        '10A-01': { math: 85, science: 92 },
-        '10A-02': { math: 78, science: 88 },
-        '10A-03': { math: 95, science: 90 },
-        '10A-04': { math: '', science: '' },
-        '10A-05': { math: 65, science: 70 },
-    });
+    const [searchParams] = useSearchParams();
+    const classId = searchParams.get('classId');
+    const navigate = useNavigate();
 
-    const students = [
-        { id: '10A-01', name: 'Aarav Patel' },
-        { id: '10A-02', name: 'Diya Singh' },
-        { id: '10A-03', name: 'Kabir Khan' },
-        { id: '10A-04', name: 'Aryan Sharma' },
-        { id: '10A-05', name: 'Ananya Gupta' },
-    ];
+    const [marks, setMarks] = useState({});
+    const [students, setStudents] = useState([]);
+    const [className, setClassName] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Exam name config (can be made dynamic later)
+    const examName = 'Mid-Term Examinations';
+
+    useEffect(() => {
+        if (!classId) {
+            toast.error('No class selected');
+            navigate('/teacher/classes');
+            return;
+        }
+
+        const fetchRoster = async () => {
+            try {
+                const res = await api.get(`/academic/teacher/roster/${classId}`);
+                if (res.status === 'success') {
+                    setStudents(res.data.data.students);
+                    setClassName(res.data.data.className);
+
+                    // Initialize marks state
+                    const initialMarks = {};
+                    res.data.data.students.forEach(s => {
+                        initialMarks[s.id] = { math: '', science: '' };
+                    });
+                    setMarks(initialMarks);
+                }
+            } catch (error) {
+                toast.error('Failed to load class roster');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchRoster();
+    }, [classId, navigate]);
 
     const handleMarkChange = (id, subject, value) => {
         // Only allow numbers 0-100
@@ -33,19 +64,42 @@ const TeacherMarks = () => {
         });
     };
 
-    const handleSave = () => {
-        alert("Marks safely stored in the database!");
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const res = await api.post('/academic/marks', {
+                classId,
+                examName,
+                marks
+            });
+            if (res.status === 'success') {
+                toast.success(res.message || 'Marks saved successfully!');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to save marks');
+        } finally {
+            setIsSaving(false);
+        }
     };
+
+    if (isLoading) {
+        return <div className="p-8 text-center text-slate-500">Loading student roster...</div>;
+    }
 
     return (
         <div className="space-y-6">
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Mid-Term Examinations</h2>
-                    <p className="text-slate-500 font-medium">Class 10 - A</p>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => navigate('/teacher/classes')} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">{examName}</h2>
+                        <p className="text-slate-500 font-medium">{className}</p>
+                    </div>
                 </div>
-                <Button leftIcon={<Save className="w-5 h-5" />} onClick={handleSave}>
+                <Button leftIcon={<Save className="w-5 h-5" />} onClick={handleSave} isLoading={isSaving}>
                     Save Draft
                 </Button>
             </div>
