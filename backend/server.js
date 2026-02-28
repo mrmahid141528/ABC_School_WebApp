@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 import connectDB from './config/db.js';
 import User from './models/User.js';
@@ -14,24 +15,25 @@ dotenv.config();
 
 // Connect to database and seed SuperAdmin
 connectDB().then(async () => {
-    // Upsert SuperAdmin — ensures account always has the correct credentials
-    const bcrypt = await import('bcryptjs');
-    const hashedPassword = await bcrypt.default.hash('9733222558', 10);
-
-    await User.findOneAndUpdate(
-        { username: 'mrmahid141528@gmail.com' },
-        {
-            $set: {
-                name: 'Super Admin',
-                username: 'mrmahid141528@gmail.com',
-                password: hashedPassword,
-                role: 'SuperAdmin',
-                isDeleted: false,
-            }
-        },
-        { upsert: true, new: true }
-    );
-    console.log('✅ SuperAdmin account ready: username=mrmahid141528@gmail.com');
+    try {
+        const hashedPassword = await bcrypt.hash('9733222558', 10);
+        await User.findOneAndUpdate(
+            { username: 'mrmahid141528@gmail.com' },
+            {
+                $set: {
+                    name: 'Super Admin',
+                    username: 'mrmahid141528@gmail.com',
+                    password: hashedPassword,
+                    role: 'SuperAdmin',
+                    isDeleted: false,
+                }
+            },
+            { upsert: true, new: true }
+        );
+        console.log('✅ SuperAdmin account ready: mrmahid141528@gmail.com');
+    } catch (err) {
+        console.error('❌ SuperAdmin seed error:', err.message);
+    }
 });
 
 const app = express();
