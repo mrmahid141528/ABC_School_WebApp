@@ -22,6 +22,7 @@ import AdminFinance from './pages/AdminFinance';
 import AdminAcademics from './pages/AdminAcademics';
 import AdminSettings from './pages/AdminSettings';
 import AdminBugs from './pages/AdminBugs';
+import AdminManageAccess from './pages/AdminManageAccess';
 import LegalPages from './pages/LegalPages';
 
 // Lazy loading pages for PWA performance
@@ -61,6 +62,7 @@ function App() {
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/bugs" element={<AdminBugs />} />
                 <Route path="/admin/staff" element={<AdminStaff />} />
+                <Route path="/admin/manage-access" element={<AdminManageAccess />} />
 
                 {/* Teacher */}
                 <Route path="/teacher/classes" element={<TeacherDashboard />} />
