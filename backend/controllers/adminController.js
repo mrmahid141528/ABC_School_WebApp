@@ -207,3 +207,32 @@ export const deleteStaffAccount = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
+// @desc    Update Staff Module Permissions
+// @route   PUT /api/admin/staff/:id/permissions
+// @access  Private (SuperAdmin)
+export const updateStaffPermissions = async (req, res) => {
+    try {
+        const { permissions } = req.body;
+        if (!permissions || typeof permissions !== 'object') {
+            return res.status(400).json({ status: 'error', message: 'permissions object is required' });
+        }
+        const staff = await User.findOne({ _id: req.params.id, isDeleted: false });
+        if (!staff) return res.status(404).json({ status: 'error', message: 'Staff member not found' });
+        if (staff.role === 'SuperAdmin') {
+            return res.status(403).json({ status: 'error', message: 'Cannot modify SuperAdmin permissions' });
+        }
+        // Save each permission toggle
+        Object.entries(permissions).forEach(([key, value]) => {
+            staff.permissions.set(key, Boolean(value));
+        });
+        await staff.save();
+        res.status(200).json({
+            status: 'success',
+            message: `Permissions updated for ${staff.name}`,
+            data: { permissions: Object.fromEntries(staff.permissions) }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};

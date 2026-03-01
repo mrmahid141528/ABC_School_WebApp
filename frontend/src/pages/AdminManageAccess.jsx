@@ -58,14 +58,15 @@ const AdminManageAccess = () => {
         if (!selected) return;
         setIsSaving(true);
         try {
-            // NOTE: Backend endpoint for permissions to be wired when ready
-            // await api.put(`/admin/staff/${selected._id}/permissions`, { permissions });
-            toast.success(`Permissions updated for ${selected.name}`);
-            setStaff(prev => prev.map(s =>
-                s._id === selected._id ? { ...s, permissions } : s
-            ));
-        } catch {
-            toast.error('Failed to save permissions');
+            const res = await api.put(`/admin/staff/${selected._id}/permissions`, { permissions });
+            if (res.status === 'success') {
+                toast.success(`✅ Permissions updated for ${selected.name}`);
+                setStaff(prev => prev.map(s =>
+                    s._id === selected._id ? { ...s, permissions } : s
+                ));
+            }
+        } catch (err) {
+            toast.error(err.message || 'Failed to save permissions');
         } finally {
             setIsSaving(false);
         }

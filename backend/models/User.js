@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
         otp: { type: String },
         otpExpiry: { type: Date },
         isDeleted: { type: Boolean, default: false },
+        permissions: {
+            type: Map,
+            of: Boolean,
+            default: {}
+        },
     },
     { timestamps: true }
 );
